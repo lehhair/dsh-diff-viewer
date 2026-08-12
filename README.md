@@ -21,6 +21,11 @@ patches/dsh-diff-viewer.patch   # 给宿主加两个 chain 槽位 + ui-primitive
 
 ## 安装
 
+## 效果
+
+<img width="1740" height="1048" alt="image" src="https://github.com/user-attachments/assets/67b4db35-07e5-4fce-852d-bbe4ee33b695" />
+
+
 ### 源码环境（DSH monorepo checkout）
 
 ```sh
