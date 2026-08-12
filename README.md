@@ -19,12 +19,11 @@ patches/dsh-diff-viewer.patch   # 给宿主加两个 chain 槽位 + ui-primitive
 
 插件通过 `cordis.patch.yml` 注册进两个槽位（priority 0，恒匹配 selector），挂载即替换、卸载即还原。这与 dsh-external 社区的 `dsh-subagent-tree` / `fabric` 模式一致（自带宿主补丁 + 插件注册）。
 
-## 安装
-
 ## 效果
 
 <img width="1740" height="1048" alt="image" src="https://github.com/user-attachments/assets/67b4db35-07e5-4fce-852d-bbe4ee33b695" />
 
+## 安装
 
 ### 源码环境（DSH monorepo checkout）
 
