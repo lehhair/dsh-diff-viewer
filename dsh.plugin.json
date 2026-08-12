@@ -1,0 +1,14 @@
+{
+  "id": "@dsh-external/dsh-diff-viewer",
+  "version": "0.1.0",
+  "main": "./lib/index.js",
+  "client": {
+    "main": "./lib/client.js",
+    "inject": [
+      "@deepseek-ai/dsh-client-runtime"
+    ]
+  },
+  "engines": {
+    "dsh": ">=0.0.1"
+  }
+}
