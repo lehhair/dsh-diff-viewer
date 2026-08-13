@@ -16,20 +16,20 @@ importers:
         version: 8.0.4
     devDependencies:
       '@deepseek-ai/dsh-client-locale':
-        specifier: link:../test-lehhair/packages/client/locale
-        version: link:../test-lehhair/packages/client/locale
+        specifier: link:../dsh2026/test-lehhair/packages/client/locale
+        version: link:../dsh2026/test-lehhair/packages/client/locale
       '@deepseek-ai/dsh-client-runtime':
-        specifier: link:../test-lehhair/packages/client/runtime
-        version: link:../test-lehhair/packages/client/runtime
+        specifier: link:../dsh2026/test-lehhair/packages/client/runtime
+        version: link:../dsh2026/test-lehhair/packages/client/runtime
       '@deepseek-ai/dsh-client-test-runtime':
-        specifier: link:../test-lehhair/packages/client/test-runtime
-        version: link:../test-lehhair/packages/client/test-runtime
+        specifier: link:../dsh2026/test-lehhair/packages/test-support/client-runtime
+        version: link:../dsh2026/test-lehhair/packages/test-support/client-runtime
       '@deepseek-ai/dsh-client-ui-primitives':
-        specifier: link:../test-lehhair/packages/client/ui-primitives
-        version: link:../test-lehhair/packages/client/ui-primitives
+        specifier: link:../dsh2026/test-lehhair/packages/client/ui-primitives
+        version: link:../dsh2026/test-lehhair/packages/client/ui-primitives
       '@deepseek-ai/dsh-client-ui-slots':
-        specifier: link:../test-lehhair/packages/client/ui-slots
-        version: link:../test-lehhair/packages/client/ui-slots
+        specifier: link:../dsh2026/test-lehhair/packages/client/ui-slots
+        version: link:../dsh2026/test-lehhair/packages/client/ui-slots
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.1
@@ -46,8 +46,8 @@ importers:
         specifier: ^18.3.1
         version: 18.3.7(@types/react@18.3.31)
       cordis:
-        specifier: link:../test-lehhair/vendor/cordis
-        version: link:../test-lehhair/vendor/cordis
+        specifier: link:../dsh2026/test-lehhair/vendor/cordis
+        version: link:../dsh2026/test-lehhair/vendor/cordis
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
