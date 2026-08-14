@@ -6,11 +6,11 @@
 // rendering, the copy control, and the footer.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import {
   collapseContextPaired, collapseContextUnified, computePairedLines, computeUnifiedLines, computeWordDiff,
   copyText, diffStats, DiffViewer, displayMaxChars, expandRegion, isTooFragmented, langFromPath, lineNumberColumnWidth,
-  separatorDirections,
+  resolveDiffViewMode, separatorDirections,
 } from '../src/client/DiffViewer.tsx'
 
 afterEach(cleanup)
@@ -597,6 +597,48 @@ describe('DiffViewer rendering', () => {
     expect(observed).not.toBeNull()
     unmount()
     expect(disposed).toBe(true)
+  })
+
+  it('flips between unified and split by container width (PiUI rule, 800px)', async () => {
+    // The responsive rule: below 800px the container renders unified rows,
+    // at or above 800px it renders split rows — so the stock 748px column
+    // stays unified while a wide-mode 1080px column flips to split. The
+    // stub captures the ResizeObserver callback and lets the test drive
+    // the width; split vs unified is told apart by the split row wrapper
+    // (two panels side by side) vs its absence.
+    let fire: (() => void) | null = null
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(fn: () => void) { fire = fn }
+      observe() {}
+      disconnect() {}
+    })
+    render(<DiffViewer diffs={[twoLineHunk]} />)
+    const container = document.querySelector('[data-diff-viewer]') as HTMLElement
+    const splitRow = () => container.querySelector('[class*="_splitRow_"]')
+    // Narrow (< 800): unified — no split row wrapper.
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 700 })
+    await act(async () => { fire?.() })
+    expect(splitRow()).toBeNull()
+    // Wide (>= 800): split row wrapper appears.
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 900 })
+    await act(async () => { fire?.() })
+    expect(splitRow()).not.toBeNull()
+  })
+
+  it('resolveDiffViewMode maps widths to layouts at the 800px boundary', () => {
+    expect(resolveDiffViewMode(700)).toBe('unified')
+    expect(resolveDiffViewMode(748)).toBe('unified')
+    expect(resolveDiffViewMode(799)).toBe('unified')
+    expect(resolveDiffViewMode(800)).toBe('split')
+    expect(resolveDiffViewMode(900)).toBe('split')
+    expect(resolveDiffViewMode(1080)).toBe('split')
+  })
+
+  it('keeps the caller viewMode seed when the container has no width', () => {
+    // jsdom reports clientWidth 0 and no ResizeObserver; the component must
+    // keep the seeded mode instead of collapsing to unified.
+    const view = render(<DiffViewer diffs={[twoLineHunk]} viewMode="split" />)
+    expect(view.container.querySelector('[class*="_splitRow_"]')).not.toBeNull()
   })
 
   it('renders syntax-colored spans for a path whose extension maps to a grammar', () => {

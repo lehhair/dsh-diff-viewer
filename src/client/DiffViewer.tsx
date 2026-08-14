@@ -53,6 +53,18 @@ export interface DiffHunk {
 /** Which row layout a diff renders with. */
 export type DiffViewMode = 'split' | 'unified'
 
+/**
+ * Resolve the row layout from the container width (PiUI's responsive rule,
+ * adapted to dsh's column widths): the stock 748px message column stays
+ * unified, a wide-mode 1080px column flips to split. Pure so it can be
+ * tested directly and shared by the observer and initial render.
+ * @param width - the diff container's client width in px.
+ * @returns the layout for that width.
+ */
+export function resolveDiffViewMode(width: number): DiffViewMode {
+  return width < 800 ? 'unified' : 'split'
+}
+
 /** Localized copy for the diff surface; every field defaults to the built-in
  *  Chinese value, so existing consumers render unchanged. */
 export interface DiffViewerLabels {
@@ -1227,7 +1239,14 @@ export function diffStats(diffs: DiffHunk[]): { added: number; removed: number; 
 }
 
 /**
- * Render a file mutation as the visual diff surface.
+ * Render a file mutation as the visual diff surface. The row layout is
+ * chosen by CONTAINER WIDTH, not by a caller flag: PiUI's responsive rule —
+ * split side-by-side when the diff has room (>= 720px), unified otherwise —
+ * is recreated here with a ResizeObserver on this component's own box, so a
+ * widened feed (e.g. home-ui wide mode) automatically shows split diffs and
+ * a narrow panel falls back to unified, with no special-casing of any
+ * host mode. The `viewMode` prop seeds the first render (default unified);
+ * the observer then owns the decision.
  * @param props - see {@link DiffViewerProps}.
  * @returns the diff viewer element.
  */
@@ -1235,9 +1254,29 @@ export function DiffViewer({ diffs, viewMode = 'unified', lang, maxLines, classN
   const resolvedLabels = { ...DEFAULT_LABELS, ...labels }
   const stats = useMemo(() => diffStats(diffs), [diffs])
   const { copied, onCopy } = useCopyFeedback(useMemo(() => copyText(diffs), [diffs]))
+  // Responsive split/unified rule (PiUI's DiffViewer observes its container
+  // and flips by width): the stock 748px message column stays unified, a
+  // wide-mode 1080px column flips to split — see resolveDiffViewMode. The
+  // observer owns the decision once mounted; in environments without layout
+  // (jsdom) the container reports 0 width and there may be no ResizeObserver
+  // at all — both keep the caller's viewMode seed.
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [responsiveMode, setResponsiveMode] = useState<DiffViewMode>(viewMode)
+  useEffect(() => {
+    const container = containerRef.current
+    if (container === null || typeof ResizeObserver === 'undefined') return
+    const update = (): void => {
+      if (container.clientWidth === 0) return
+      setResponsiveMode(resolveDiffViewMode(container.clientWidth))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
   if (diffs.length === 0) return null
   return (
-    <div className={clsx(css.block, className)} data-diff="" data-diff-viewer="">
+    <div ref={containerRef} className={clsx(css.block, className)} data-diff="" data-diff-viewer="">
       <button type="button" className={css.copyButton} onClick={onCopy}>
         {copied ? '复制成功' : '复制'}
       </button>
@@ -1248,7 +1287,7 @@ export function DiffViewer({ diffs, viewMode = 'unified', lang, maxLines, classN
             before={hunk.oldText ?? ''}
             after={hunk.newText}
             lang={lang ?? langFromPath(hunk.path)}
-            viewMode={viewMode}
+            viewMode={responsiveMode}
             maxLines={maxLines}
             labels={resolvedLabels}
           />
