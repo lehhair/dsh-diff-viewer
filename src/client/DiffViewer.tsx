@@ -948,7 +948,14 @@ function Viewport({ rows, maxLines, children }: {
       ref={containerRef}
       className={css.viewport}
       onScroll={onScroll}
-      style={maxLines !== undefined ? { maxHeight: maxLines * DIFF_LINE_HEIGHT } : undefined}
+      // Capped mode: a max-height scroll container. Uncapped (the plugin's
+      // takeover rows, the details panel): the content grows to its full
+      // height and the viewport never scrolls — no residual sub-pixel
+      // overflow scrollbar. The windowed renderer still mounts only the
+      // visible rows either way.
+      style={maxLines !== undefined
+        ? { maxHeight: maxLines * DIFF_LINE_HEIGHT }
+        : { overflow: 'visible' }}
     >
       <div className={css.spacer} style={{ height: rows * DIFF_LINE_HEIGHT }}>
         <div className={css.window} style={{ transform: `translateY(${offsetY}px)` }}>
