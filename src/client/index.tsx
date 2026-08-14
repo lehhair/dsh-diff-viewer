@@ -1,38 +1,38 @@
 /**
- * Registers the DiffViewer surface into the ui-tool diff-card chain slots:
- * `tool.call.diffcard` (chat flow rows) and `tool.details.diffcard` (details
- * panel). Both are chain slots declared by the stock ui-tool bundle; this
- * plugin's registration runs at priority 0 with a constant selector, so it
- * wins the chain over the stock DiffBlock fallback whenever it is mounted —
- * and the stock surface returns automatically when this plugin unloads.
+ * Registers the DiffViewer surface into the ui-tool keyed atomic Tool view
+ * slot (`tool.call.toolview`) under the write/edit keys. rc.5's keyed slot
+ * lets a registration at a LOWER priority shadow a shipped key (lowest
+ * priority renders), so this plugin's rows take over the stock
+ * FileMutationRow while mounted and return automatically on unload.
+ *
+ * The takeover row re-implements the stock FileMutationRow chrome faithfully
+ * (the stock ToolRow stylesheet + platform DisclosureRow/StateDot/icons) —
+ * only the expanded diff card renders through the PiUI-style DiffViewer.
  */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
-import { DiffViewer } from './DiffViewer.tsx'
-import type { DiffCardOwnerProps } from './diffcard-contract.ts'
-
-/** The diff-card chain owner props the stock ui-tool rows supply. */
-type Owner = DiffCardOwnerProps
-
-/** Render the visual diff surface for one card chain dispatch. */
-function DiffViewerCard({ card, maxLines, className }: Owner) {
-  return <DiffViewer diffs={card.card.diffs} maxLines={maxLines} className={className} />
-}
+import { MutationRow } from './mutation-row.tsx'
 
 /** Required service: the slot registry. */
 export const inject = ['slots']
 
+/** The tool keys this plugin takes over (the wire tools that emit diff cards). */
+const MUTATION_TOOLS = ['edit', 'write'] as const
+
 /**
- * Mount the DiffViewer into both diff-card chain slots.
+ * Mount the DiffViewer rows into the keyed atomic Tool view slot under the
+ * mutation tool keys, shadowing the shipped rows at a lower priority.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  for (const slot of ['tool.call.diffcard', 'tool.details.diffcard'] as const) {
-    ctx.slots.inject(slot, () => ctx.slots.register({
-      name: slot,
-      priority: 0,
-      select: () => true,
-    }, DiffViewerCard))
-  }
+  ctx.slots.inject('tool.call.toolview', function* () {
+    for (const key of MUTATION_TOOLS) {
+      yield ctx.slots.register({
+        name: 'tool.call.toolview',
+        key,
+        priority: -1,
+      }, MutationRow)
+    }
+  })
 }

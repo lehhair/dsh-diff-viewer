@@ -8,10 +8,12 @@
  * (removed on unload), the same mechanism as the official client bundles.
  */
 import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { basename, dirname, resolve } from 'node:path'
 import { transform } from 'lightningcss'
 import type { UserConfig } from 'tsdown'
 
+const require = createRequire(import.meta.url)
 const PLUGIN_ID = '@dsh-external/dsh-diff-viewer'
 
 /** Module specifiers the dsh web shell shares into its frozen module table. */
@@ -66,6 +68,10 @@ export default [
       resolveId(source: string) {
         if (!source.startsWith('@deepseek-ai/')) return null
         if (CLIENT_EXTERNALS.includes(source)) return null
+        // The takeover row reuses the stock row's stylesheet through the
+        // package's exported src subpath (inlined CSS Modules; no shared
+        // runtime instance — the dsh-css-modules-inline plugin consumes it).
+        if (source.startsWith('@deepseek-ai/dsh-client-ui-tool/src/') && source.endsWith('.module.css')) return null
         throw new Error(
           `client bundle purity: "${source}" is not a platform module (CLIENT_EXTERNALS) — `
           + 'cross-plugin value imports are forbidden; collaborate through cordis services',
@@ -76,12 +82,18 @@ export default [
       name: 'dsh-css-modules-inline',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css')) return null
-        const abs = importer !== undefined ? resolve(dirname(importer), source) : source
+        // A package-name source (e.g. the stock ToolRow stylesheet) stays a
+        // bare specifier — resolved from node_modules at load time; a relative
+        // source resolves against the importer as before.
+        const abs = source.startsWith('@')
+          ? source
+          : importer !== undefined ? resolve(dirname(importer), source) : source
         return CSS_VIRTUAL_PREFIX + abs + CSS_VIRTUAL_SUFFIX
       },
       async load(virtualId: string) {
         if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
-        const fileId = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
+        const raw = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
+        const fileId = raw.startsWith('@') ? require.resolve(raw) : raw
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
         const { code, exports: cssExports } = transform({

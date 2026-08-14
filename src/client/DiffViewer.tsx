@@ -19,6 +19,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type UIEvent } from 'react'
 import clsx from 'clsx'
 import { diffLines, diffWordsWithSpace } from 'diff'
+// The per-line shiki token path, shared with the stock ReadBlock: ui-primitives
+// is a platform module, so this import stays external and the shiki machinery
+// lives in the shell bundle, never in this plugin's.
 import {
   grammarLoadCount, highlightLines, subscribeGrammarLoaded, useCopyFeedback, type HighlightSpan,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -1227,7 +1230,7 @@ export function DiffViewer({ diffs, viewMode = 'unified', lang, maxLines, classN
   const { copied, onCopy } = useCopyFeedback(useMemo(() => copyText(diffs), [diffs]))
   if (diffs.length === 0) return null
   return (
-    <div className={clsx(css.block, className)} data-diff="">
+    <div className={clsx(css.block, className)} data-diff="" data-diff-viewer="">
       <button type="button" className={css.copyButton} onClick={onCopy}>
         {copied ? '复制成功' : '复制'}
       </button>
