@@ -1,3 +1,5 @@
+[![dshfind](https://dshfind.com/api/badge/lehhair/dsh-diff-viewer?lang=zh)](https://dshfind.com/zh/plugins/lehhair/dsh-diff-viewer?ref=badge)
+
 # dsh-diff-viewer
 
 DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调用的 diff 渲染（原 DiffBlock）。
