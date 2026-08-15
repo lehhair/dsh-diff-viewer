@@ -19,14 +19,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type UIEvent } from 'react'
 import clsx from 'clsx'
 import { diffLines, diffWordsWithSpace } from 'diff'
-// The per-line shiki token path goes through shiki-bridge: rc.5 shells expose
-// it on ui-primitives (reused from the shell bundle, zero duplication), rc.6+
-// retracted it and the bridge degrades to plain text. Only `writeClipboard`
-// survives across both, so the copy button is reimplemented here on it.
-import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
+// Syntax coloring is self-contained: the dsh shell keeps its shiki machinery
+// private (the pinned build harness never exported the per-line highlight API,
+// and rc.6 retracted it), so this plugin ships its own highlighter and its own
+// clipboard helper — no ui-primitives value import survives in the bundle.
 import {
-  grammarLoadCount, highlightLines, subscribeGrammarLoaded, NOOP_SUBSCRIBE, ZERO_COUNT, type HighlightSpan,
-} from './shiki-bridge.ts'
+  grammarLoadCount, highlightLines, subscribeGrammarLoaded, type HighlightSpan,
+} from './highlight.ts'
+import { writeClipboard } from './clipboard.ts'
 import css from './DiffViewer.module.css'
 
 /** Fixed row height (px): the windowing arithmetic and the CSS line-height share this value. */
@@ -863,13 +863,9 @@ interface DiffBodyProps {
 function DiffBody({ before, after, lang, viewMode, maxLines, labels, className }: DiffBodyProps) {
   // Re-render when a lazy grammar finishes loading, so a diff that showed
   // plain text while its language's grammar imported picks up highlighting.
-  // rc.6+ shells retracted the loader: the no-op pair keeps the hook stable
-  // and the tokens memo degrades to the plain fallback below.
-  const subscribe = subscribeGrammarLoaded ?? NOOP_SUBSCRIBE
-  const getCount = grammarLoadCount ?? ZERO_COUNT
-  const loaded = useSyncExternalStore(subscribe, getCount, getCount)
+  const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
   const tokens = useMemo(
-    () => ({ before: highlightLines?.(before, lang), after: highlightLines?.(after, lang) }),
+    () => ({ before: highlightLines(before, lang), after: highlightLines(after, lang) }),
     [before, after, lang, loaded],
   )
   const pairedLines = useMemo(() => computePairedLines(before, after), [before, after])

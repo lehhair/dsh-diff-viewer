@@ -565,7 +565,7 @@ describe('DiffViewer rendering', () => {
 
   it('copies the diff and flips the control label on success', async () => {
     const write = vi.fn().mockResolvedValue(true)
-    vi.spyOn(await import('@deepseek-ai/dsh-client-ui-primitives/src/clipboard.ts'), 'writeClipboard').mockImplementation(write)
+    vi.spyOn(await import('../src/client/clipboard.ts'), 'writeClipboard').mockImplementation(write)
     const view = render(<DiffViewer diffs={[twoLineHunk]} />)
     fireEvent.click(view.getByRole('button', { name: '复制' }))
     expect(write).toHaveBeenCalledWith('notes/demo.txt\n- hello\n+ hello fixture')

@@ -40,8 +40,10 @@
     }
   },
   "dependencies": {
+    "@shikijs/langs": "^4.3.1",
     "clsx": "^2.1.1",
-    "diff": "^8.0.4"
+    "diff": "^8.0.4",
+    "shiki": "^4.3.1"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "*",
