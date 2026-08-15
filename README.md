@@ -1,4 +1,4 @@
-[![dshfind](https://dshfind.com/api/badge/lehhair/dsh-diff-viewer?lang=zh)](https://dshfind.com/zh/plugins/lehhair/dsh-diff-viewer?ref=badge)
+[![dshfind](https://dshfind.com/api/card/lehhair/dsh-diff-viewer?lang=zh)](https://dshfind.com/zh/plugins/lehhair/dsh-diff-viewer?ref=badge)
 
 # dsh-diff-viewer
 
