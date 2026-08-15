@@ -75,6 +75,10 @@ jobs:
       - name: Pack release tarball
         working-directory: dsh-diff-viewer
         run: |
+          # The devDependencies are link: into the harness checkout; strip them
+          # from the packed manifest (npm pack reads the working package.json)
+          # so a plain consumer install never tries to resolve those links.
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.devDependencies;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
           mkdir -p dist
           npm pack --pack-destination dist
 
