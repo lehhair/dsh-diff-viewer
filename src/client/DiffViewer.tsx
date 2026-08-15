@@ -19,12 +19,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type UIEvent } from 'react'
 import clsx from 'clsx'
 import { diffLines, diffWordsWithSpace } from 'diff'
-// The per-line shiki token path, shared with the stock ReadBlock: ui-primitives
-// is a platform module, so this import stays external and the shiki machinery
-// lives in the shell bundle, never in this plugin's.
+// The per-line shiki token path goes through shiki-bridge: rc.5 shells expose
+// it on ui-primitives (reused from the shell bundle, zero duplication), rc.6+
+// retracted it and the bridge degrades to plain text. Only `writeClipboard`
+// survives across both, so the copy button is reimplemented here on it.
+import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
-  grammarLoadCount, highlightLines, subscribeGrammarLoaded, useCopyFeedback, type HighlightSpan,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+  grammarLoadCount, highlightLines, subscribeGrammarLoaded, NOOP_SUBSCRIBE, ZERO_COUNT, type HighlightSpan,
+} from './shiki-bridge.ts'
 import css from './DiffViewer.module.css'
 
 /** Fixed row height (px): the windowing arithmetic and the CSS line-height share this value. */
@@ -38,6 +40,27 @@ const CONTEXT_LINES = 3
 
 /** A collapsed context separator expands in chunks of this many lines. */
 const EXPANSION_LINE_COUNT = 100
+
+/** How long the `copied` flag stays true after a successful write, in ms. */
+const COPIED_FEEDBACK_MS = 1000
+
+/**
+ * Copy text with one-second success feedback, reimplemented on `writeClipboard`
+ * — the only clipboard export ui-primitives keeps across rc.5 and rc.6 (the
+ * rc.5 `useCopyFeedback` hook was retracted alongside the shiki path).
+ */
+function useCopyFeedback(text: string): { copied: boolean; onCopy: () => void } {
+  const [copied, setCopied] = useState(false)
+  const onCopy = useCallback(() => {
+    if (copied) return
+    void writeClipboard(text).then((ok) => {
+      if (!ok) return
+      setCopied(true)
+      window.setTimeout(() => { setCopied(false) }, COPIED_FEEDBACK_MS)
+    })
+  }, [copied, text])
+  return { copied, onCopy }
+}
 
 /** One file's change, in the shape the wire's `card:'diff'` view carries. Redeclared
  *  here so this primitive stays free of the tool contract, like the block it replaces. */
@@ -840,9 +863,13 @@ interface DiffBodyProps {
 function DiffBody({ before, after, lang, viewMode, maxLines, labels, className }: DiffBodyProps) {
   // Re-render when a lazy grammar finishes loading, so a diff that showed
   // plain text while its language's grammar imported picks up highlighting.
-  const loaded = useSyncExternalStore(subscribeGrammarLoaded, grammarLoadCount, grammarLoadCount)
+  // rc.6+ shells retracted the loader: the no-op pair keeps the hook stable
+  // and the tokens memo degrades to the plain fallback below.
+  const subscribe = subscribeGrammarLoaded ?? NOOP_SUBSCRIBE
+  const getCount = grammarLoadCount ?? ZERO_COUNT
+  const loaded = useSyncExternalStore(subscribe, getCount, getCount)
   const tokens = useMemo(
-    () => ({ before: highlightLines(before, lang), after: highlightLines(after, lang) }),
+    () => ({ before: highlightLines?.(before, lang), after: highlightLines?.(after, lang) }),
     [before, after, lang, loaded],
   )
   const pairedLines = useMemo(() => computePairedLines(before, after), [before, after])
