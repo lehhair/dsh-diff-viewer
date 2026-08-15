@@ -24,6 +24,13 @@ jobs:
     steps:
       - name: Checkout plugin
         uses: actions/checkout@v4
+        with:
+          # The plugin's devDependencies are `link:../dsh2026/...` relative to
+          # the plugin root; check it into a named subdir so that relative
+          # target lands on the harness checkout below (GITHUB_WORKSPACE itself
+          # already carries the repo name, so a root checkout would shift the
+          # link target one level too high).
+          path: dsh-diff-viewer
 
       - name: Checkout deepseek-harness (plugin build-time dependency source)
         uses: actions/checkout@v4
@@ -55,12 +62,15 @@ jobs:
           pnpm run build:lib
 
       - name: 'Install plugin (link: targets now exist)'
+        working-directory: dsh-diff-viewer
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck, test, build
+        working-directory: dsh-diff-viewer
         run: pnpm run check
 
       - name: Pack release tarball
+        working-directory: dsh-diff-viewer
         run: |
           mkdir -p dist
           npm pack --pack-destination dist
@@ -68,4 +78,4 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.tgz
+          files: dsh-diff-viewer/dist/*.tgz
