@@ -68,6 +68,23 @@ jobs:
         working-directory: dsh-diff-viewer
         run: pnpm install --frozen-lockfile
 
+      - name: Diagnose highlight/shiki resolution (temporary)
+        working-directory: dsh-diff-viewer
+        run: |
+          node -e "
+            const fs = require('fs');
+            const idx = '../dsh2026/deepseek-harness/packages/client/ui-primitives/src/index.ts';
+            console.log('primitives src index exists:', fs.existsSync(idx));
+            const src = fs.readFileSync(idx, 'utf8');
+            console.log('index exports highlightLines:', src.includes('highlightLines'));
+            try { console.log('shiki resolves:', require.resolve('shiki/core', { paths: ['../dsh2026/deepseek-harness/packages/client/ui-primitives'] })) } catch (e) { console.log('shiki FAIL:', e.message.split('\n')[0]) }
+          "
+          node -e "
+            const fs = require('fs');
+            const t = fs.readFileSync('tests/diff-viewer.spec.tsx', 'utf8');
+            console.log('test env directive:', (t.match(/@vitest-environment[^\n]*/) || ['none'])[0]);
+          "
+
       - name: Typecheck, test, build
         working-directory: dsh-diff-viewer
         run: pnpm run check
