@@ -22,17 +22,32 @@ DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调�
 
 ## 安装
 
-### 任意 dsh 版本（纯插件）
+### 推荐：GitHub Release 构建产物（开箱即用）
+
+每次发版后，GitHub Actions 自动构建并把 tarball 附加到 [Releases](https://github.com/lehhair/dsh-diff-viewer/releases) 页。下载后安装：
 
 ```sh
-# 直接安装插件（path/tarball/github 均可）
-dsh plugin --profile web add E:\dev\dsh-diff-viewer   # 或 tarball / github:lehhair/dsh-diff-viewer
+# 到 Releases 页下载 dsh-external-dsh-diff-viewer-<version>.tgz，然后：
+dsh plugin --profile web add ./dsh-external-dsh-diff-viewer-0.1.0.tgz
+# 或直接用 Release 资产 URL（把 tag / 版本号换成实际的）：
+dsh plugin --profile web add "https://github.com/lehhair/dsh-diff-viewer/releases/download/v0.1.0/dsh-external-dsh-diff-viewer-0.1.0.tgz"
 
 # 重启 dsh web 生效
 dsh web
 ```
 
-> Windows 注意：`dsh plugin add <本地目录>` 的 `link:` 绝对路径有 junction bug（pnpm 拼错目标）。用 **tarball**（`npm pack` 后 `dsh plugin add *.tgz`）或 GitHub 安装可绕过。
+> ⚠️ 不要用 `dsh plugin add "github:lehhair/dsh-diff-viewer"` 直接装源码：GitHub 源码**不含构建产物** `lib/`（被 `.gitignore` 忽略），而包的入口指向 `lib/index.js`，启动会报"找不到文件"。源码安装只适合开发环境（见下）。
+
+### 开发环境（从源码）
+
+```sh
+# devDependencies 用 link: 指向 ../dsh2026/deepseek-harness（本地 deepseek-harness checkout）
+pnpm install && pnpm run check    # typecheck + test + build
+# 直接安装本地目录，或 npm pack 后装 tarball：
+dsh plugin --profile web add E:\dev\dsh-diff-viewer
+```
+
+> Windows 注意：`dsh plugin add <本地目录>` 的 `link:` 绝对路径有 junction bug（pnpm 拼错目标）。用 **tarball**（`npm pack` 后 `dsh plugin add *.tgz`）可绕过。
 
 ## 卸载
 

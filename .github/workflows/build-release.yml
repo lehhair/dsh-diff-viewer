@@ -1,0 +1,71 @@
+# Build the plugin and attach the packed tarball to a GitHub Release.
+#
+# The plugin's devDependencies are `link:` into a local deepseek-harness
+# checkout (the plugin repo's build-time dependency source), so this workflow
+# checks out that harness and builds it before building the plugin. The harness
+# ref is PINNED to the rc.5-era commit the plugin's source targets: harness
+# master moves (rc.6 retracted the ui-primitives shiki exports this plugin
+# consumes), and a pinned build keeps releases reproducible.
+#
+# Triggered on release publish (attach to that release) or manually.
+name: build-release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+
+      - name: Checkout deepseek-harness (plugin build-time dependency source)
+        uses: actions/checkout@v4
+        with:
+          repository: deepseek-ai/deepseek-harness
+          # rc.5-era master (npm-public merge); the plugin's link: devDependencies
+          # resolve into this checkout at ../dsh2026/deepseek-harness/... — the
+          # layout this repo's pnpm-lock.yaml records.
+          ref: 47f943859bef60e4160492346772ded9b24f765a
+          path: dsh2026/deepseek-harness
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: dsh2026/deepseek-harness/pnpm-lock.yaml
+
+      - name: Build harness (tsc emits lib/types, tsdown emits lib runtimes)
+        working-directory: dsh2026/deepseek-harness
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build:lib
+
+      - name: 'Install plugin (link: targets now exist)'
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck, test, build
+        run: pnpm run check
+
+      - name: Pack release tarball
+        run: |
+          mkdir -p dist
+          npm pack --pack-destination dist
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tgz
