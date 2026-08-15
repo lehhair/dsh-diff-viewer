@@ -26,17 +26,17 @@ DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调�
 
 ### 推荐：GitHub Release 构建产物（开箱即用）
 
-每次发版后，GitHub Actions 自动构建并把 tarball 附加到 [Releases](https://github.com/lehhair/dsh-diff-viewer/releases) 页。下载后安装：
+每次发版后，GitHub Actions 自动构建并把 tarball 附加到 [Releases](https://github.com/lehhair/dsh-diff-viewer/releases) 页。`releases/latest` 永远指向最新版本，安装链接不需要随版本改动：
 
 ```sh
-# 到 Releases 页下载 dsh-external-dsh-diff-viewer-<version>.tgz，然后：
-dsh plugin --profile web add ./dsh-external-dsh-diff-viewer-0.1.0.tgz
-# 或直接用 Release 资产 URL（把 tag / 版本号换成实际的）：
-dsh plugin --profile web add "https://github.com/lehhair/dsh-diff-viewer/releases/download/v0.1.0/dsh-external-dsh-diff-viewer-0.1.0.tgz"
+# 直接用 latest 资产 URL（永远是最新版）：
+dsh plugin --profile web add "https://github.com/lehhair/dsh-diff-viewer/releases/latest/download/dsh-external-dsh-diff-viewer.tgz"
 
 # 重启 dsh web 生效
 dsh web
 ```
+
+> ⚠️ 升级注意：pnpm 会按 URL 缓存 tarball——同一 `latest` 链接在出新版本后可能命中旧缓存。升级失败/装到旧版时，先 `dsh plugin --profile web remove @dsh-external/dsh-diff-viewer`，再 `pnpm store prune`（或删除 `C:\Users\lehhair\AppData\Local\pnpm\store` 对应缓存）后重新安装。
 
 > ⚠️ 不要用 `dsh plugin add "github:lehhair/dsh-diff-viewer"` 直接装源码：GitHub 源码**不含构建产物** `lib/`（被 `.gitignore` 忽略），而包的入口指向 `lib/index.js`，启动会报"找不到文件"。源码安装只适合开发环境（见下）。
 

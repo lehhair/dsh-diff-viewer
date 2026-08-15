@@ -81,6 +81,10 @@ jobs:
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.devDependencies;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
           mkdir -p dist
           npm pack --pack-destination dist
+          # Rename to a versionless fixed name so
+          # releases/latest/download/dsh-external-dsh-diff-viewer.tgz always
+          # points at the newest build.
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const fixed=p.name.replace(/^@/,'').replace('/','-')+'.tgz';const packed=fs.readdirSync('dist').find(f=>f.endsWith('.tgz'));if(packed&&packed!==fixed){fs.renameSync('dist/'+packed,'dist/'+fixed)}"
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
