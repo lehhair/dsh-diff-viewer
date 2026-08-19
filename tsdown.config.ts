@@ -99,11 +99,16 @@ export default [
         const { code, exports: cssExports } = transform({
           filename: fileId,
           code: source,
-          cssModules: { pattern: '[hash]_[local]' },
+          // `[hash]` derives from the resolved absolute path, so a build on a
+          // different machine (CI) mints different class names and the
+          // committed-lib gate fails spuriously; the basename is stable.
+          cssModules: { pattern: '[name]_[local]' },
           minify: true,
         })
         const classMap: Record<string, string> = {}
-        for (const [local, exp] of Object.entries(cssExports ?? {})) classMap[local] = exp.name
+        // lightningcss exports its class map in hash-table order, which is not
+        // stable across builds — sort so the committed-lib gate can compare.
+        for (const local of Object.keys(cssExports ?? {}).sort()) classMap[local] = cssExports![local]!.name
         const tagId = `${PLUGIN_ID}/${basename(fileId)}`
         return [
           `const css = ${JSON.stringify(code.toString())};`,
