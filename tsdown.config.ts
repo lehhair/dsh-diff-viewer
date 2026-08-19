@@ -9,11 +9,16 @@
  */
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { basename, dirname, resolve } from 'node:path'
+import { basename, dirname, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { transform } from 'lightningcss'
 import type { UserConfig } from 'tsdown'
 
 const require = createRequire(import.meta.url)
+/** The plugin root (the tsdown config's own directory); CSS virtual ids stay
+ *  relative to it so the emitted //#region comments carry no machine-specific
+ *  absolute path and the committed-lib gate can compare cross-machine. */
+const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
 const PLUGIN_ID = '@dsh-external/dsh-diff-viewer'
 
 /** Module specifiers the dsh web shell shares into its frozen module table. */
@@ -84,16 +89,22 @@ export default [
         if (!source.endsWith('.module.css')) return null
         // A package-name source (e.g. the stock ToolRow stylesheet) stays a
         // bare specifier — resolved from node_modules at load time; a relative
-        // source resolves against the importer as before.
+        // source resolves against the importer as before, but its virtual id
+        // is project-root-relative so the bundle stays machine-independent.
         const abs = source.startsWith('@')
           ? source
           : importer !== undefined ? resolve(dirname(importer), source) : source
-        return CSS_VIRTUAL_PREFIX + abs + CSS_VIRTUAL_SUFFIX
+        const display = source.startsWith('@')
+          ? abs
+          // Virtual ids use forward slashes on every platform, so a Windows
+          // build and a Linux CI build mint byte-identical bundles.
+          : relative(PROJECT_ROOT, abs).replaceAll('\\', '/')
+        return CSS_VIRTUAL_PREFIX + display + CSS_VIRTUAL_SUFFIX
       },
       async load(virtualId: string) {
         if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
         const raw = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
-        const fileId = raw.startsWith('@') ? require.resolve(raw) : raw
+        const fileId = raw.startsWith('@') ? require.resolve(raw) : resolve(PROJECT_ROOT, raw)
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
         const { code, exports: cssExports } = transform({
