@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/dsh-diff-viewer",
   "description": "DSH diff-viewer plugin: PiUI-style visual diff surface (split/unified, change bars, line numbers, word-level marks, collapsed context, windowed rendering) replacing the stock DiffBlock for write/edit tool calls. Registers into the ui-tool diff-card chain slots.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

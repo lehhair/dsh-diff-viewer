@@ -12,6 +12,8 @@ import {
   copyText, diffStats, DiffViewer, displayMaxChars, expandRegion, isTooFragmented, langFromPath, lineNumberColumnWidth,
   resolveDiffViewMode, separatorDirections,
 } from '../src/client/DiffViewer.tsx'
+import { callTimeDiffs, diffCardModel } from '../src/client/diffcard-contract.ts'
+import { defaultOpenFor, MutationRow } from '../src/client/mutation-row.tsx'
 
 afterEach(cleanup)
 
@@ -706,5 +708,134 @@ describe('DiffViewer rendering', () => {
     left.scrollLeft = 15
     fireEvent.scroll(left)
     expect(right.scrollLeft).toBe(15)
+  })
+})
+
+describe('diffCardModel', () => {
+  // Frozen call slices in the two lifecycle forms, shaped like the
+  // conversation projection hands them to the toolview owner.
+  const running = (name: string, argsRaw: string, callView: unknown = null) => ({
+    callId: 'c1', name, argsRaw, turn: 1, step: 1, time: 0, callView, subCalls: [],
+  })
+  const settled = (name: string, argsRaw: string, opts: { isError?: boolean; resultView?: unknown } = {}) => ({
+    kind: 'tool-result', seq: 1, time: 0, callId: 'c1',
+    call: { name, argsRaw }, callTime: 0, content: [],
+    isError: opts.isError ?? false, callView: null,
+    resultView: opts.resultView ?? null, subCalls: [],
+  })
+
+  it('keeps the wire call view for a running top-level call', () => {
+    const model = diffCardModel(running('edit', '{}', {
+      card: 'diff', diffs: [{ path: 'a.ts', oldText: 'x', newText: 'y' }],
+    }) as Parameters<typeof diffCardModel>[0])
+    expect(model).toEqual({ card: { diffs: [{ path: 'a.ts', oldText: 'x', newText: 'y' }] } })
+  })
+
+  it('derives the call-time diff from args for a running code-dispatch child', () => {
+    const model = diffCardModel(running('edit', JSON.stringify({
+      file_path: 'a.ts', old_string: 'x', new_string: 'y',
+    })) as Parameters<typeof diffCardModel>[0])
+    expect(model).toEqual({ card: { diffs: [{ path: 'a.ts', oldText: 'x', newText: 'y' }] } })
+  })
+
+  it('renders a running write child as a whole-file create from args', () => {
+    const model = diffCardModel(running('write', JSON.stringify({
+      file_path: 'b.ts', content: 'z',
+    })) as Parameters<typeof diffCardModel>[0])
+    expect(model).toEqual({ card: { diffs: [{ path: 'b.ts', oldText: null, newText: 'z' }] } })
+  })
+
+  it('keeps the applied result hunks for a settled top-level call', () => {
+    const model = diffCardModel(settled('edit', '{}', {
+      resultView: { card: 'diff', diffs: [{ path: 'a.ts', oldText: 'old', newText: 'new' }] },
+    }) as Parameters<typeof diffCardModel>[0])
+    expect(model).toEqual({ card: { diffs: [{ path: 'a.ts', oldText: 'old', newText: 'new' }] } })
+  })
+
+  it('falls back to the call-time diff for a settled code-dispatch child', () => {
+    const model = diffCardModel(settled('edit', JSON.stringify({
+      file_path: 'a.ts', old_string: 'x', new_string: 'y',
+    })) as Parameters<typeof diffCardModel>[0])
+    expect(model).toEqual({ card: { diffs: [{ path: 'a.ts', oldText: 'x', newText: 'y' }] } })
+  })
+
+  it('keeps an errored settled mutation on the generic path', () => {
+    expect(diffCardModel(settled('edit', JSON.stringify({
+      file_path: 'a.ts', old_string: 'x', new_string: 'y',
+    }), { isError: true }) as Parameters<typeof diffCardModel>[0])).toBeNull()
+    expect(diffCardModel(settled('write', JSON.stringify({
+      file_path: 'b.ts', content: 'z',
+    }), { isError: true }) as Parameters<typeof diffCardModel>[0])).toBeNull()
+  })
+
+  it('returns null for malformed args or a non-mutation tool', () => {
+    expect(diffCardModel(settled('edit', 'not json') as Parameters<typeof diffCardModel>[0])).toBeNull()
+    expect(diffCardModel(settled('edit', JSON.stringify({ file_path: 'a.ts' })) as Parameters<typeof diffCardModel>[0])).toBeNull()
+    expect(diffCardModel(settled('bash', JSON.stringify({ command: 'ls' })) as Parameters<typeof diffCardModel>[0])).toBeNull()
+  })
+
+  it('callTimeDiffs mirrors each tool’s own presentCall semantics', () => {
+    expect(callTimeDiffs('edit', JSON.stringify({ file_path: 'a.ts', old_string: 'x', new_string: '' })))
+      .toEqual([{ path: 'a.ts', oldText: 'x', newText: '' }])
+    expect(callTimeDiffs('write', JSON.stringify({ file_path: 'b.ts', content: 'z' })))
+      .toEqual([{ path: 'b.ts', oldText: null, newText: 'z' }])
+    expect(callTimeDiffs('bash', '{}')).toBeNull()
+    expect(callTimeDiffs('edit', 'not json')).toBeNull()
+  })
+})
+
+describe('defaultOpenFor', () => {
+  const running = (name: string) => ({ callId: 'c1', name, argsRaw: '{}', turn: 1, step: 1, time: 0, callView: null, subCalls: [] })
+  const settled = (name: string, isError = false) => ({
+    kind: 'tool-result', seq: 1, time: 0, callId: 'c1',
+    call: { name, argsRaw: '{}' }, callTime: 0, content: [],
+    isError, callView: null, resultView: null, subCalls: [],
+  })
+
+  it('opens a settled successful edit result card by default', () => {
+    expect(defaultOpenFor('edit', settled('edit') as Parameters<typeof defaultOpenFor>[1])).toBe(true)
+  })
+
+  it('keeps running, errored, and write rows collapsed', () => {
+    expect(defaultOpenFor('edit', running('edit') as Parameters<typeof defaultOpenFor>[1])).toBe(false)
+    expect(defaultOpenFor('edit', settled('edit', true) as Parameters<typeof defaultOpenFor>[1])).toBe(false)
+    expect(defaultOpenFor('write', settled('write') as Parameters<typeof defaultOpenFor>[1])).toBe(false)
+    expect(defaultOpenFor('write', running('write') as Parameters<typeof defaultOpenFor>[1])).toBe(false)
+  })
+})
+
+describe('MutationRow default-open lifecycle', () => {
+  it('expands once when a running edit row settles', () => {
+    const runningBlock = {
+      callId: 'c1', name: 'edit',
+      argsRaw: JSON.stringify({ file_path: 'a.ts', old_string: 'x', new_string: 'y' }),
+      turn: 1, step: 1, time: 0, callView: null, subCalls: [],
+    }
+    const settledBlock = {
+      kind: 'tool-result', seq: 1, time: 0, callId: 'c1',
+      call: { name: 'edit', argsRaw: runningBlock.argsRaw }, callTime: 0, content: [],
+      isError: false, callView: null, resultView: null, subCalls: [],
+    }
+    const props = (block: unknown) => ({
+      callId: 'c1', toolName: 'edit', block,
+      openFile: () => {}, inspect: undefined,
+    }) as Parameters<typeof MutationRow>[0]
+    const view = render(<MutationRow {...props(runningBlock)} />)
+    // Running: collapsed — the diff body is not mounted.
+    expect(view.container.querySelector('[data-diff-viewer]')).toBeNull()
+    // Settle in place: the row auto-expands and shows the args-derived diff.
+    view.rerender(<MutationRow {...props(settledBlock)} />)
+    expect(view.container.querySelector('[data-diff-viewer]')).not.toBeNull()
+    expect(view.container.textContent).toContain('a.ts')
+  })
+
+  it('stays collapsed when a settled write row mounts', () => {
+    const block = {
+      kind: 'tool-result', seq: 1, time: 0, callId: 'c1',
+      call: { name: 'write', argsRaw: JSON.stringify({ file_path: 'b.ts', content: 'z' }) },
+      callTime: 0, content: [], isError: false, callView: null, resultView: null, subCalls: [],
+    }
+    const view = render(<MutationRow {...({ callId: 'c1', toolName: 'write', block, openFile: () => {}, inspect: undefined } as Parameters<typeof MutationRow>[0])} />)
+    expect(view.container.querySelector('[data-diff-viewer]')).toBeNull()
   })
 })

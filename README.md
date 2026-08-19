@@ -10,6 +10,8 @@ DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调�
 - **上下文折叠**：长段未变更行折叠为"`N 行未变更`"，向上/向下/全部展开
 - **窗口化渲染**：固定行高窗口化，大 diff 不挂载全部行；sticky 横向滚动条（hover 显现）
 - **复制 + `└ +A -R · N file(s)` 页脚**
+- **edit 结果默认展开**：settled 的 edit 结果卡展开即见替换 diff（write 保持默认收起）
+- **PTC/Code 嵌套支持**：Code Dispatch 内的 write/edit 子卡片同样接管——嵌套子调用没有 wire diff view，插件按工具自身的 `presentCall` 语义从参数推导调用时 diff（edit 的 old_string→new_string、write 的整文件新增），错误子调用保持通用错误路径
 
 ## 机制
 
@@ -17,6 +19,7 @@ DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调�
 
 - **不限制高度**：展开的 diff 直接撑开显示完整内容（不套滚动容器），窗口化渲染保证超大 diff 依然高效
 - **diff 数据**：从工具调用的 `callView`/`resultView` 的 `card:'diff'` 意图提取（running 用调用时 diff，settled 用应用后的 hunks）；执行错误（无 diff 卡）走官方行的错误摘要 + IN/OUT 卡
+- **嵌套兜底**：Code Dispatch 子调用（PTC 模式）的 `callView`/`resultView` 恒为 null（分发桥不落 presentation meta），插件回退到参数的调用时 diff——与官方行渲染同一调用的 running 态一致
 
 ## 效果
 
@@ -24,7 +27,17 @@ DSH Web GUI 的 PiUI 风格 diff 查看器插件：替换 write/edit 工具调�
 
 ## 安装
 
-### 推荐：GitHub Release 构建产物（开箱即用）
+### 方式一：GitHub 仓库直装（源码 + 构建产物）
+
+`lib/` 构建产物**已提交进仓库**，因此 `github:` 直装可直接工作（market 的 Install 按钮即走此路径）：
+
+```sh
+dsh plugin --profile web add "github:lehhair/dsh-diff-viewer"
+```
+
+> 直装装的是仓库当前 commit 的构建产物。想要跟随最新 commit 请用 Release 资产（见下），它永远指向最新**发版**。
+
+### 方式二：GitHub Release 构建产物（推荐，跟随发版）
 
 每次发版后，GitHub Actions 自动构建并把 tarball 附加到 [Releases](https://github.com/lehhair/dsh-diff-viewer/releases) 页。`releases/latest` 永远指向最新版本，安装链接不需要随版本改动：
 
@@ -38,8 +51,6 @@ dsh web
 
 > ⚠️ 升级注意：pnpm 会按 URL 缓存 tarball——同一 `latest` 链接在出新版本后可能命中旧缓存。升级失败/装到旧版时，先 `dsh plugin --profile web remove @dsh-external/dsh-diff-viewer`，再 `pnpm store prune`（或删除 `C:\Users\lehhair\AppData\Local\pnpm\store` 对应缓存）后重新安装。
 
-> ⚠️ 不要用 `dsh plugin add "github:lehhair/dsh-diff-viewer"` 直接装源码：GitHub 源码**不含构建产物** `lib/`（被 `.gitignore` 忽略），而包的入口指向 `lib/index.js`，启动会报"找不到文件"。源码安装只适合开发环境（见下）。
-
 ### 开发环境（从源码）
 
 ```sh
@@ -50,6 +61,8 @@ dsh plugin --profile web add E:\dev\dsh-diff-viewer
 ```
 
 > Windows 注意：`dsh plugin add <本地目录>` 的 `link:` 绝对路径有 junction bug（pnpm 拼错目标）。用 **tarball**（`npm pack` 后 `dsh plugin add *.tgz`）可绕过。
+
+> 发版注意：`lib/` 已提交，源码改动必须同时重建并提交 `lib/`（CI 的 `check` 后会校验 `lib/` 与源码一致，不一致即失败）。
 
 ## 卸载
 

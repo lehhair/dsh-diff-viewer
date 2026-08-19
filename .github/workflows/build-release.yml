@@ -40,10 +40,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: deepseek-ai/deepseek-harness
-          # rc.5-era master (npm-public merge); the plugin's link: devDependencies
-          # resolve into this checkout at ../dsh2026/deepseek-harness/... — the
-          # layout this repo's pnpm-lock.yaml records.
-          ref: 47f943859bef60e4160492346772ded9b24f765a
+          # rc.7-era master (release/dsh-0.1.0-rc.7 merge); the plugin's link:
+          # devDependencies resolve into this checkout at
+          # ../dsh2026/deepseek-harness/... — the layout this repo's
+          # pnpm-lock.yaml records.
+          ref: 99f6f02fec0d0dd7d99a03ceefc4ee03d28a77e7
           path: dsh2026/deepseek-harness
           fetch-depth: 1
 
@@ -75,6 +76,17 @@ jobs:
       - name: Typecheck, test, build
         working-directory: dsh-diff-viewer
         run: pnpm run check
+
+      - name: Verify committed lib matches the fresh build
+        working-directory: dsh-diff-viewer
+        run: |
+          # lib/ is committed so `github:` repo-url installs work (issue #8);
+          # a source change without a rebuilt lib would ship stale artifacts
+          # to that install path, so the gate fails the release instead.
+          if ! git diff --exit-code -- lib/; then
+            echo "::error::lib/ differs from the fresh build — rebuild and commit lib/ together with source changes"
+            exit 1
+          fi
 
       - name: Pack release tarball
         working-directory: dsh-diff-viewer

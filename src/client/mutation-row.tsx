@@ -9,7 +9,7 @@
  * the stock tool-call model for the edit/write variants; the CSS classes come
  * from the ui-tool package's exported src subpath (inlined into this bundle).
  */
-import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   DisclosureRow, IconEditOutline16, IconInspectOutline12, StateDot,
@@ -126,13 +126,38 @@ export interface MutationRowProps {
 }
 
 /**
+ * Whether a row card opens by default: a settled, successful `edit` result
+ * shows its replacement diff without a click — the issue-driven default
+ * (「edit 的结果卡片默认展开」). Writes keep the stock collapsed default (a
+ * whole-file diff is bulk), and running or errored rows stay collapsed so the
+ * flow never auto-expands transient or error-only cards. Pure for direct
+ * testing.
+ * @param toolName - the wire Tool name.
+ * @param block - the frozen running or settled call slice.
+ * @returns whether the row's expanded body should start open.
+ */
+export function defaultOpenFor(toolName: string, block: ToolCallBlock): boolean {
+  return toolName === 'edit' && 'kind' in block && !block.isError
+}
+
+/**
  * The mutation row: stock FileMutationRow chrome (DisclosureRow, state dot,
  * path link, error summary, IN/OUT card) with the expanded diff card rendered
  * through DiffViewer.
  * @param props - toolview owner currency.
  */
 export function MutationRow({ toolName, block, cwd, openFile, inspect }: MutationRowProps) {
-  const [expanded, setExpanded] = useState(false)
+  // A live session mounts the row while its call is still running (collapsed)
+  // and settles it in place, so the default-open rule also fires once on the
+  // running→settled transition; a manually toggled row keeps its state until
+  // the next transition.
+  const [expanded, setExpanded] = useState(() => defaultOpenFor(toolName, block))
+  const runningRef = useRef(!('kind' in block))
+  useEffect(() => {
+    const settled = 'kind' in block
+    if (runningRef.current && settled && defaultOpenFor(toolName, block)) setExpanded(true)
+    runningRef.current = !settled
+  }, [toolName, block])
   const model = rowModel(toolName, block, cwd)
   const diff = diffCardModel(block)
   const diffBody = diff ?? null
