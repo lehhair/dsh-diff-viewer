@@ -49,7 +49,7 @@ dsh plugin --profile web add "https://github.com/lehhair/dsh-diff-viewer/release
 dsh web
 ```
 
-> ⚠️ 升级注意：pnpm 会按 URL 缓存 tarball——同一 `latest` 链接在出新版本后可能命中旧缓存。升级失败/装到旧版时，先 `dsh plugin --profile web remove @dsh-external/dsh-diff-viewer`，再 `pnpm store prune`（或删除 `C:\Users\lehhair\AppData\Local\pnpm\store` 对应缓存）后重新安装。
+> ⚠️ 升级注意：pnpm 会按 URL 缓存 tarball——同一 `latest` 链接在出新版本后可能命中旧缓存。升级失败/装到旧版时，先 `dsh plugin --profile web remove @dsh-external/dsh-diff-viewer`，再 `pnpm store prune`（或删除 `pnpm store path` 输出目录中的对应缓存）后重新安装。
 
 ### 开发环境（从源码）
 
